@@ -1,0 +1,31 @@
+# ===== .NET =====
+**/bin/
+**/obj/
+*.user
+*.suo
+.vs/
+appsettings.Development.json
+
+# ===== React =====
+**/node_modules/
+**/dist/
+**/.next/
+
+# ===== Variabile de mediu (NICIODATA in git) =====
+**/.env
+**/.env.local
+**/.env.development
+**/.env.production
+
+# ===== Supabase =====
+supabase/.branches/
+supabase/.temp/
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+
+# ===== IDE =====
+.idea/
+*.iml
+.vscode/settings.json
