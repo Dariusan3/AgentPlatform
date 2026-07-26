@@ -43,6 +43,16 @@ export const languageLabels: Record<AgentLanguage, string> = {
   hu: 'Maghiară',
 }
 
+/** `capitalize` ar da „Whatsapp"; numele de brand are majuscula in mijloc. */
+export const channelLabels: Record<string, string> = {
+  whatsapp: 'WhatsApp',
+  sms: 'SMS',
+  telegram: 'Telegram',
+}
+
+export const channelLabel = (channel: string) =>
+  channelLabels[channel] ?? channel
+
 export const propertyTypes = Object.keys(propertyTypeLabels) as PropertyType[]
 export const leadStatuses = Object.keys(leadStatusLabels) as LeadStatus[]
 export const tones = Object.keys(toneLabels) as AgentTone[]

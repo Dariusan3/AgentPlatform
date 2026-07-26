@@ -15,6 +15,17 @@ public interface IConversationRepository
     Task<int> CountActiveAsync(Guid tenantId, CancellationToken ct = default);
     Task<int> CountAsync(Guid tenantId, CancellationToken ct = default);
     Task<Conversation> UpdateAsync(Conversation conversation, CancellationToken ct = default);
+    Task<Conversation> CreateAsync(Conversation conversation, CancellationToken ct = default);
+
+    /// <summary>Conversatia deschisa cu acest contact pe acest agent, daca exista.</summary>
+    Task<Conversation?> GetByContactAsync(
+        Guid tenantId,
+        Guid aiAgentId,
+        string contactPhone,
+        CancellationToken ct = default);
+
+    /// <summary>Adauga mesajul si muta last_message_at pe conversatie.</summary>
+    Task<Message> AddMessageAsync(Message message, CancellationToken ct = default);
 
     /// <summary>Ultimul mesaj al fiecarei conversatii, pentru liste.</summary>
     Task<Dictionary<Guid, Message>> GetLastMessagesAsync(
@@ -74,6 +85,47 @@ public class ConversationRepository : IConversationRepository
         _db.Conversations.Update(conversation);
         await _db.SaveChangesAsync(ct);
         return conversation;
+    }
+
+    public async Task<Conversation> CreateAsync(
+        Conversation conversation,
+        CancellationToken ct = default)
+    {
+        _db.Conversations.Add(conversation);
+        await _db.SaveChangesAsync(ct);
+        return conversation;
+    }
+
+    public Task<Conversation?> GetByContactAsync(
+        Guid tenantId,
+        Guid aiAgentId,
+        string contactPhone,
+        CancellationToken ct = default) =>
+        _db.Conversations
+            .Include(c => c.Messages)
+            .Where(c => c.TenantId == tenantId
+                        && c.AiAgentId == aiAgentId
+                        && c.ContactPhone == contactPhone
+                        && c.Status != "closed")
+            .OrderByDescending(c => c.LastMessageAt ?? c.StartedAt)
+            .FirstOrDefaultAsync(ct);
+
+    public async Task<Message> AddMessageAsync(
+        Message message,
+        CancellationToken ct = default)
+    {
+        _db.Messages.Add(message);
+
+        // Lista de conversatii se ordoneaza dupa last_message_at, deci trebuie mutat
+        var conversation = await _db.Conversations
+            .FirstOrDefaultAsync(c => c.Id == message.ConversationId, ct);
+        if (conversation is not null)
+        {
+            conversation.LastMessageAt = message.CreatedAt;
+        }
+
+        await _db.SaveChangesAsync(ct);
+        return message;
     }
 
     public async Task<Dictionary<Guid, Message>> GetLastMessagesAsync(

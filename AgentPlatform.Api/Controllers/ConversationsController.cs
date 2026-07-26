@@ -47,6 +47,19 @@ public class ConversationsController : ControllerBase
         CancellationToken ct)
         => Ok(await _conversations.CloseAsync(id, TenantId, ct));
 
+    /// <summary>
+    /// Simuleaza un mesaj primit pe WhatsApp si genereaza raspunsul agentului.
+    /// Exista ca sa poti testa agentii local, fara Twilio si fara telefon.
+    /// </summary>
+    [HttpPost("simulate")]
+    [ProducesResponseType<SimulateResultDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<SimulateResultDto>> Simulate(
+        SimulateMessageDto dto,
+        CancellationToken ct)
+        => Ok(await _conversations.SimulateInboundAsync(dto, TenantId, ct));
+
     /// <summary>Creeaza leadul din conversatie. Idempotent.</summary>
     [HttpPatch("{id:guid}/convert")]
     [ProducesResponseType<LeadResponseDto>(StatusCodes.Status200OK)]

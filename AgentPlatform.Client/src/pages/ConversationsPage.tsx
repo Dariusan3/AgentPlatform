@@ -4,17 +4,23 @@ import {
   Info,
   MessageSquare,
   Search,
+  Send,
   UserPlus,
   XCircle,
 } from 'lucide-react'
 import { EmptyCard, ErrorCard, LoadingCard } from '@/components/QueryState'
+import { SimulateDialog } from '@/components/SimulateDialog'
 import { Spinner } from '@/components/Spinner'
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/field'
 import { Progress } from '@/components/ui/progress'
-import { conversationStatusLabels, formatMessageTime } from '@/lib/labels'
+import {
+  channelLabel,
+  conversationStatusLabels,
+  formatMessageTime,
+} from '@/lib/labels'
 import {
   useCloseConversation,
   useConversation,
@@ -30,6 +36,7 @@ export function ConversationsPage() {
   const [search, setSearch] = useState('')
   // Pe mobil nu incap ambele coloane, deci lista si conversatia se schimba
   const [showThread, setShowThread] = useState(false)
+  const [simulateOpen, setSimulateOpen] = useState(false)
 
   const { data, isPending, isError, error, refetch } = useConversations()
 
@@ -70,7 +77,21 @@ export function ConversationsPage() {
         <EmptyCard
           icon={<MessageSquare aria-hidden className="size-6" />}
           title="Încă nicio conversație"
-          description="Conversațiile apar automat aici când un client scrie pe numărul de WhatsApp conectat la un agent activ."
+          description="Conversațiile apar automat aici când un client scrie pe numărul de WhatsApp conectat. Până atunci, poți testa agenții cu un mesaj simulat."
+          action={
+            <Button size="md" onClick={() => setSimulateOpen(true)}>
+              <Send aria-hidden className="size-4" />
+              Testează un agent
+            </Button>
+          }
+        />
+        <SimulateDialog
+          open={simulateOpen}
+          onOpenChange={setSimulateOpen}
+          onSimulated={(id) => {
+            setActiveId(id)
+            setShowThread(true)
+          }}
         />
       </div>
     )
@@ -84,8 +105,8 @@ export function ConversationsPage() {
           showThread && 'hidden lg:flex',
         )}
       >
-        <div className="border-line shrink-0 border-b p-3">
-          <div className="relative">
+        <div className="border-line flex shrink-0 items-center gap-2 border-b p-3">
+          <div className="relative flex-1">
             <Search
               aria-hidden
               className="text-muted pointer-events-none absolute top-1/2 left-3.5 size-3.5 -translate-y-1/2"
@@ -98,6 +119,16 @@ export function ConversationsPage() {
               className="h-9 pl-9 text-[13px]"
             />
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            aria-label="Testează un agent"
+            title="Testează un agent cu un mesaj simulat"
+            className="h-9 shrink-0 px-2.5"
+            onClick={() => setSimulateOpen(true)}
+          >
+            <Send aria-hidden className="size-3.5" />
+          </Button>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
@@ -163,6 +194,15 @@ export function ConversationsPage() {
           </div>
         )}
       </div>
+
+      <SimulateDialog
+        open={simulateOpen}
+        onOpenChange={setSimulateOpen}
+        onSimulated={(id) => {
+          setActiveId(id)
+          setShowThread(true)
+        }}
+      />
     </div>
   )
 }
@@ -227,9 +267,7 @@ function ThreadContent({
             {conversation.contactPhone}
           </p>
         </div>
-        <Badge tone="success" className="capitalize">
-          {conversation.channel}
-        </Badge>
+        <Badge tone="success">{channelLabel(conversation.channel)}</Badge>
       </div>
 
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 sm:p-5">

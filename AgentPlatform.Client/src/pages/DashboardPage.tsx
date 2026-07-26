@@ -21,6 +21,7 @@ import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card'
 import {
+  channelLabel,
   conversationStatusLabels,
   formatMessageTime,
   formatWeekday,
@@ -295,8 +296,8 @@ function RecentConversations({ stats }: { stats: DashboardStats }) {
                       </span>
                     </div>
                   </td>
-                  <td className="text-muted px-5 py-3.5 text-[13px] capitalize">
-                    {conversation.channel}
+                  <td className="text-muted px-5 py-3.5 text-[13px]">
+                    {channelLabel(conversation.channel)}
                   </td>
                   <td className="px-5 py-3.5">
                     <Badge tone={conversationTone[conversation.status]}>

@@ -47,6 +47,11 @@ public static class ServiceExtensions
         services.AddScoped<IConversationService, ConversationService>();
         services.AddScoped<IDashboardService, DashboardService>();
         services.AddScoped<ISettingsService, SettingsService>();
+        services.AddScoped<IAiReplyService, AiReplyService>();
+
+        services.AddHttpClient<IGroqClient, GroqClient>(http =>
+            // Modelele mari pot depasi 30s la prompturi lungi
+            http.Timeout = TimeSpan.FromSeconds(60));
 
         // Fara ConfigureHttpClient: clientul isi citeste configurarea la apel,
         // ca un secret lipsa sa nu doboare tot SettingsController.
