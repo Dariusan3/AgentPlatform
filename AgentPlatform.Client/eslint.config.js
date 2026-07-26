@@ -19,4 +19,13 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    // Componentele shadcn re-exporta primitive Radix (`export const Dialog =
+    // DialogPrimitive.Root`). Regula nu le recunoaste ca fiind componente,
+    // fiindca sunt aliasuri, nu declaratii - e un fals pozitiv.
+    files: ['src/components/ui/**/*.tsx'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 ])

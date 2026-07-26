@@ -3,6 +3,10 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace AgentPlatform.Api.Models;
 
+/// <summary>
+/// Tenantul. `Id` este `auth.users.id` din Supabase, deci este si TenantId-ul
+/// extras din JWT. Randul e creat automat de trigger-ul on_auth_user_created.
+/// </summary>
 [Table("agents")]
 public class Agent
 {
@@ -29,6 +33,10 @@ public class Agent
     [Column("plan")]
     [MaxLength(20)]
     public string Plan { get; set; } = "starter";
+
+    [Column("stripe_customer_id")]
+    [MaxLength(100)]
+    public string? StripeCustomerId { get; set; }
 
     [Column("created_at")]
     public DateTime CreatedAt { get; set; }

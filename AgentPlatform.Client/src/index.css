@@ -3,12 +3,22 @@
 @theme {
   /* Paleta: negru ca baza, alb pentru text, amber ca singur accent */
   --color-ink: #0a0a0a;
-  --color-surface: #111111;
-  --color-line: #222222;
+  --color-surface: #0f0f0f;
+  --color-line: #1a1a1a;
   --color-line-strong: #333333;
   --color-fg: #ffffff;
   --color-muted: #888888;
   --color-amber: #f5a623;
+
+  /* Stari de suprafata pentru navigatie si rânduri de tabel */
+  --color-hover: #141414;
+  --color-raised: #1a1a1a;
+
+  /* Semantice. Verdele si rosul apar DOAR ca status, niciodata decorativ. */
+  --color-success: #22c55e;
+  --color-danger: #ef4444;
+  --color-info: #60a5fa;
+  --color-violet: #a78bfa;
 
   /* Verde folosit exclusiv in mock-ul de WhatsApp, ca sa citeasca drept captura */
   --color-wa: #0f3b32;
@@ -21,6 +31,16 @@
   --radius-btn: 8px;
 
   --animate-fade-up: fade-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+
+  /* Radix asteapta animationend ca sa demonteze, deci si ieșirile sunt animate */
+  --animate-overlay-in: overlay-in 0.18s ease-out;
+  --animate-overlay-out: overlay-out 0.16s ease-in;
+  --animate-dialog-in: dialog-in 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-dialog-out: dialog-out 0.16s ease-in;
+  --animate-sheet-in-right: sheet-in-right 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-sheet-out-right: sheet-out-right 0.2s ease-in;
+  --animate-sheet-in-left: sheet-in-left 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-menu-in: menu-in 0.14s ease-out;
   --animate-accordion-down: accordion-down 0.24s ease-out;
   --animate-accordion-up: accordion-up 0.24s ease-out;
   --animate-breathe: breathe 4s ease-in-out infinite;
@@ -30,11 +50,79 @@
 @keyframes fade-up {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    translate: 0 12px;
   }
   to {
     opacity: 1;
-    transform: none;
+    translate: 0 0;
+  }
+}
+
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes overlay-out {
+  to {
+    opacity: 0;
+  }
+}
+
+/**
+ * Animam DOAR `opacity` si `scale`, niciodata `transform`.
+ *
+ * Tailwind 4 centreaza dialogul prin proprietatea `translate` (-50% -50%).
+ * `transform` si `translate` sunt proprietati independente si se COMPUN, deci
+ * un `transform: translate(-50%, -50%)` in keyframe ar deplasa dialogul cu o
+ * lățime intreaga in plus cat dureaza animatia, iar la final ar sari la loc.
+ */
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    scale: 0.97;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+@keyframes dialog-out {
+  from {
+    opacity: 1;
+    scale: 1;
+  }
+  to {
+    opacity: 0;
+    scale: 0.98;
+  }
+}
+
+/* Sheet-ul aluneca de la marginea ecranului, deci aici translate e intentia */
+@keyframes sheet-in-right {
+  from {
+    translate: 100% 0;
+  }
+}
+
+@keyframes sheet-out-right {
+  to {
+    translate: 100% 0;
+  }
+}
+
+@keyframes sheet-in-left {
+  from {
+    translate: -100% 0;
+  }
+}
+
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    translate: 0 -4px;
   }
 }
 

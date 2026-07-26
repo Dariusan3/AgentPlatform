@@ -24,7 +24,9 @@ public class TestController : ControllerBase
     {
         try
         {
-            var agentsCount = await _db.Agents.CountAsync();
+            // IgnoreQueryFilters: ruta e publica, deci nu exista tenant, iar
+            // filtrul global ar transforma numaratoarea in zero mereu.
+            var agentsCount = await _db.Agents.IgnoreQueryFilters().CountAsync();
 
             return Ok(new
             {
