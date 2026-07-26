@@ -17,6 +17,9 @@ appsettings.Development.json
 **/.env.development
 **/.env.production
 
+# Note locale cu parole de test - nu ajung in git
+CONTURI-DEV.md
+
 # ===== Supabase =====
 supabase/.branches/
 supabase/.temp/
@@ -29,3 +32,5 @@ Thumbs.db
 .idea/
 *.iml
 .vscode/settings.json
+# ===== Playwright MCP (screenshot-uri temporare) =====
+.playwright-mcp/
