@@ -13,8 +13,10 @@ public interface IGroqClient
     /// <summary>true daca exista cheie configurata; false inseamna „nu incerca".</summary>
     bool IsConfigured { get; }
 
+    /// <param name="model">Suprascrie Groq:Model. Vocea foloseste alt model decat chatul.</param>
     Task<string> CompleteAsync(
         IReadOnlyList<ChatMessage> messages,
+        string? model = null,
         CancellationToken ct = default);
 }
 
@@ -50,8 +52,11 @@ public class GroqClient : IGroqClient
 
     public async Task<string> CompleteAsync(
         IReadOnlyList<ChatMessage> messages,
+        string? model = null,
         CancellationToken ct = default)
     {
+        var effectiveModel = string.IsNullOrWhiteSpace(model) ? Model : model;
+
         if (!IsConfigured)
         {
             throw new ValidationException(
@@ -62,11 +67,14 @@ public class GroqClient : IGroqClient
         using var request = new HttpRequestMessage(HttpMethod.Post, Endpoint)
         {
             Content = JsonContent.Create(new GroqRequest(
-                Model,
+                effectiveModel,
                 messages.Select(m => new GroqMessage(m.Role, m.Content)).ToArray(),
                 // Temperatura joasa: un agent imobiliar nu trebuie sa fie creativ cu preturile
                 Temperature: 0.4,
-                MaxTokens: 400)),
+                // Generos intentionat: modelele cu raționament (gpt-oss) consuma
+                // din acelasi buget pentru gandire interna, iar la 400 raspunsul
+                // vizibil se taia in mijlocul propozitiei.
+                MaxTokens: 2000)),
         };
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", ApiKey);
 
@@ -84,11 +92,23 @@ public class GroqClient : IGroqClient
         }
 
         var payload = await response.Content.ReadFromJsonAsync<GroqResponse>(ct);
-        var reply = payload?.Choices?.FirstOrDefault()?.Message?.Content?.Trim();
+        var choice = payload?.Choices?.FirstOrDefault();
+        var reply = choice?.Message?.Content?.Trim();
 
         if (string.IsNullOrWhiteSpace(reply))
         {
             throw new ValidationException("Groq a răspuns fără conținut.");
+        }
+
+        // Un raspuns tăiat la jumatate de propozitie e mai rau decat niciun raspuns:
+        // clientul primeste pe WhatsApp un mesaj incomplet, de la un agent real.
+        if (choice?.FinishReason == "length")
+        {
+            _logger.LogWarning(
+                "Raspunsul a fost tăiat de limita de tokeni. Model: {Model}", effectiveModel);
+            throw new ValidationException(
+                "Modelul a depășit limita de tokeni și răspunsul a ieșit incomplet. " +
+                "Scurtează persona agentului sau reduce numărul de listări.");
         }
 
         return reply;
@@ -122,5 +142,6 @@ public class GroqClient : IGroqClient
         [property: JsonPropertyName("choices")] GroqChoice[]? Choices);
 
     private record GroqChoice(
-        [property: JsonPropertyName("message")] GroqMessage? Message);
+        [property: JsonPropertyName("message")] GroqMessage? Message,
+        [property: JsonPropertyName("finish_reason")] string? FinishReason);
 }

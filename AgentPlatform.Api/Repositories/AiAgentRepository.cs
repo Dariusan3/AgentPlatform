@@ -22,6 +22,17 @@ public interface IAiAgentRepository
     Task<Dictionary<Guid, int>> GetLeadCountsAsync(
         Guid tenantId,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Agentul care deserveste un numar de WhatsApp, fara sa stim tenantul.
+    /// Folosit de webhook: abia de aici afla cui aparține mesajul.
+    /// </summary>
+    Task<AiAgent?> FindByWhatsAppNumberAsync(
+        string whatsAppNumber,
+        CancellationToken ct = default);
+
+    /// <summary>Primul agent activ al unui tenant. Ruta de rezerva pentru sandbox.</summary>
+    Task<AiAgent?> GetFirstActiveAsync(Guid tenantId, CancellationToken ct = default);
 }
 
 public class AiAgentRepository : IAiAgentRepository
@@ -101,4 +112,34 @@ public class AiAgentRepository : IAiAgentRepository
 
         return rows.ToDictionary(row => row.AgentId, row => row.Count);
     }
+
+    /// <remarks>
+    /// IgnoreQueryFilters e obligatoriu: webhookul nu are tenant in context, iar
+    /// filtrul global ar returna zero rânduri. Comparam pe cifre, ca „+40 721 118 204"
+    /// si „whatsapp:+40721118204" sa se potriveasca.
+    /// </remarks>
+    public async Task<AiAgent?> FindByWhatsAppNumberAsync(
+        string whatsAppNumber,
+        CancellationToken ct = default)
+    {
+        var digits = OnlyDigits(whatsAppNumber);
+        if (digits.Length < 6) return null;
+
+        var candidates = await _db.AiAgents
+            .IgnoreQueryFilters()
+            .Where(a => a.WhatsAppNumber != null)
+            .ToListAsync(ct);
+
+        return candidates.FirstOrDefault(a => OnlyDigits(a.WhatsAppNumber!) == digits);
+    }
+
+    public Task<AiAgent?> GetFirstActiveAsync(Guid tenantId, CancellationToken ct = default) =>
+        _db.AiAgents
+            .IgnoreQueryFilters()
+            .Where(a => a.TenantId == tenantId && a.IsActive)
+            .OrderBy(a => a.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+
+    private static string OnlyDigits(string value) =>
+        new(value.Where(char.IsDigit).ToArray());
 }

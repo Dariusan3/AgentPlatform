@@ -25,6 +25,13 @@ app.UseExceptionMiddleware();
 
 app.UseCors(ServiceExtensions.CorsPolicy);
 
+// Twilio Media Streams: audio bidirectional prin WebSocket.
+// KeepAlive sub 30s: unele proxy-uri taie conexiunile inactive.
+app.UseWebSockets(new WebSocketOptions
+{
+    KeepAliveInterval = TimeSpan.FromSeconds(20),
+});
+
 // Ordinea conteaza: autentificarea populeaza User, tenantul se citeste din el,
 // iar autorizarea decide la final daca cererea trece.
 app.UseAuthentication();

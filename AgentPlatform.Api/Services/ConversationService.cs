@@ -28,6 +28,17 @@ public interface IConversationService
         SimulateMessageDto dto,
         Guid tenantId,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Un mesaj venit efectiv pe WhatsApp. Intoarce textul de trimis inapoi,
+    /// sau null daca nu s-a putut genera niciun raspuns.
+    /// </summary>
+    Task<string?> HandleInboundWhatsAppAsync(
+        AiAgent agent,
+        string contactPhone,
+        string? contactName,
+        string message,
+        CancellationToken ct = default);
 }
 
 public class ConversationService : IConversationService
@@ -163,9 +174,51 @@ public class ConversationService : IConversationService
                 "Pornește-l din pagina Agenți AI și încearcă din nou.");
         }
 
-        var phone = dto.ContactPhone.Trim();
+        var (conversation, reply, error) = await ProcessInboundAsync(
+            agent, dto.ContactPhone, dto.ContactName, dto.Message, ct);
 
-        // Firul se continua daca exista deja o conversatie deschisa cu acest contact
+        var updated = await _conversations.GetByIdAsync(conversation.Id, tenantId, ct);
+        var lead = await _leads.GetByConversationAsync(conversation.Id, tenantId, ct);
+
+        return new SimulateResultDto
+        {
+            Conversation = ConversationResponseDto.From(updated!, true, lead),
+            AiReply = reply,
+            ReplyError = error,
+        };
+    }
+
+    public async Task<string?> HandleInboundWhatsAppAsync(
+        AiAgent agent,
+        string contactPhone,
+        string? contactName,
+        string message,
+        CancellationToken ct = default)
+    {
+        var (_, reply, error) = await ProcessInboundAsync(
+            agent, contactPhone, contactName, message, ct);
+
+        // Twilio nu are ce face cu eroarea; o vedem in loguri si in conversatie
+        return error is null ? reply : null;
+    }
+
+    /// <summary>
+    /// Drumul comun: salveaza mesajul primit, genereaza raspunsul, il salveaza.
+    /// Simulatorul si webhookul trec amandoua prin aici, deci testul local
+    /// verifica exact codul care va rula in producție.
+    /// </summary>
+    private async Task<(Conversation Conversation, string? Reply, string? Error)>
+        ProcessInboundAsync(
+            AiAgent agent,
+            string contactPhone,
+            string? contactName,
+            string message,
+            CancellationToken ct)
+    {
+        // Forma canonica, ca acelasi client sa nu capete doua conversatii
+        var phone = PhoneNumber.Normalize(contactPhone);
+        var tenantId = agent.TenantId;
+
         var conversation =
             await _conversations.GetByContactAsync(tenantId, agent.Id, phone, ct)
             ?? await _conversations.CreateAsync(
@@ -175,7 +228,7 @@ public class ConversationService : IConversationService
                     TenantId = tenantId,
                     AiAgentId = agent.Id,
                     ContactPhone = phone,
-                    ContactName = dto.ContactName?.Trim(),
+                    ContactName = contactName?.Trim(),
                     Channel = "whatsapp",
                     Status = "active",
                     LeadScore = 0,
@@ -189,12 +242,10 @@ public class ConversationService : IConversationService
                 Id = Guid.NewGuid(),
                 ConversationId = conversation.Id,
                 Role = "user",
-                Content = dto.Message.Trim(),
+                Content = message.Trim(),
                 CreatedAt = DateTime.UtcNow,
             },
             ct);
-
-        var result = new SimulateResultDto();
 
         try
         {
@@ -218,7 +269,7 @@ public class ConversationService : IConversationService
                 },
                 ct);
 
-            result.AiReply = reply;
+            return (conversation, reply, null);
         }
         catch (Exception exception)
         {
@@ -230,7 +281,7 @@ public class ConversationService : IConversationService
                 "Generarea raspunsului a eșuat pentru conversatia {Id}",
                 conversation.Id);
 
-            result.ReplyError = exception switch
+            return (conversation, null, exception switch
             {
                 ValidationException validation => validation.Message,
                 TaskCanceledException or OperationCanceledException =>
@@ -238,13 +289,7 @@ public class ConversationService : IConversationService
                 HttpRequestException =>
                     "Nu am putut contacta serviciul AI. Verifică Groq:Endpoint și conexiunea.",
                 _ => "Generarea răspunsului a eșuat. Detaliile sunt în logurile serverului.",
-            };
+            });
         }
-
-        var updated = await _conversations.GetByIdAsync(conversation.Id, tenantId, ct);
-        var lead = await _leads.GetByConversationAsync(conversation.Id, tenantId, ct);
-
-        result.Conversation = ConversationResponseDto.From(updated!, true, lead);
-        return result;
     }
 }

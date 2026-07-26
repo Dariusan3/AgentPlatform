@@ -147,3 +147,63 @@ export type Usage = {
   leadsLimit: number | null
   plan: string
 }
+
+/** Vocile romanesti pe care Azure le are efectiv. Validate identic in API. */
+export const voiceNames = ['ro-RO-AlinaNeural', 'ro-RO-EmilNeural'] as const
+export type VoiceName = (typeof voiceNames)[number]
+
+export type VoiceAgent = {
+  id: string
+  name: string
+  twilioPhoneNumber: string | null
+  voiceName: VoiceName
+  systemPrompt: string
+  greetingMessage: string
+  maxCallDurationSeconds: number
+  isActive: boolean
+  createdAt: string
+  callsCount: number
+  qualifiedLeadsCount: number
+}
+
+export type VoiceAgentInput = {
+  name: string
+  twilioPhoneNumber: string | null
+  voiceName: VoiceName
+  systemPrompt: string | null
+  greetingMessage: string | null
+  maxCallDurationSeconds: number
+  isActive?: boolean
+}
+
+export type VoiceMessage = {
+  id: string
+  role: 'caller' | 'agent'
+  content: string
+  audioDurationMs: number | null
+  createdAt: string
+}
+
+export type VoiceCall = {
+  id: string
+  voiceAgentId: string | null
+  callSid: string
+  callerPhone: string
+  callerName: string | null
+  status: string
+  durationSeconds: number | null
+  transcript: string | null
+  leadQualified: boolean
+  viewingScheduled: boolean
+  viewingDateTime: string | null
+  smsSent: boolean
+  createdAt: string
+  endedAt: string | null
+  messages: VoiceMessage[]
+}
+
+export type VoiceTestCall = {
+  callId: string
+  callSid: string
+  streamUrl: string
+}

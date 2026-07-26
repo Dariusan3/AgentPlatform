@@ -29,6 +29,11 @@ const PropertiesPage = lazy(() =>
 const AgentsPage = lazy(() =>
   import('@/pages/AgentsPage').then((m) => ({ default: m.AgentsPage })),
 )
+const VoiceAgentsPage = lazy(() =>
+  import('@/pages/VoiceAgentsPage').then((m) => ({
+    default: m.VoiceAgentsPage,
+  })),
+)
 const LeadsPage = lazy(() =>
   import('@/pages/LeadsPage').then((m) => ({ default: m.LeadsPage })),
 )
@@ -80,6 +85,7 @@ export default function App() {
                 <Route index element={<DashboardPage />} />
                 <Route path="properties" element={<PropertiesPage />} />
                 <Route path="agents" element={<AgentsPage />} />
+                <Route path="voice-agents" element={<VoiceAgentsPage />} />
                 <Route path="leads" element={<LeadsPage />} />
                 <Route path="conversations" element={<ConversationsPage />} />
                 <Route path="settings" element={<SettingsPage />} />

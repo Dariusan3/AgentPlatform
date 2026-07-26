@@ -56,7 +56,7 @@ public class AiReplyService : IAiReplyService
             messages.Add(new ChatMessage(role, message.Content));
         }
 
-        return _groq.CompleteAsync(messages, ct);
+        return _groq.CompleteAsync(messages, ct: ct);
     }
 
     private static string BuildSystemPrompt(

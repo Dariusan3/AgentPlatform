@@ -22,6 +22,9 @@ public class AppDbContext : DbContext
     public DbSet<Message> Messages => Set<Message>();
     public DbSet<Lead> Leads => Set<Lead>();
     public DbSet<UsageMetric> UsageMetrics => Set<UsageMetric>();
+    public DbSet<VoiceAgent> VoiceAgents => Set<VoiceAgent>();
+    public DbSet<VoiceCall> VoiceCalls => Set<VoiceCall>();
+    public DbSet<VoiceMessage> VoiceMessages => Set<VoiceMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -54,6 +57,16 @@ public class AppDbContext : DbContext
             .HasIndex(u => new { u.TenantId, u.Month })
             .IsUnique();
 
+        modelBuilder.Entity<VoiceCall>(entity =>
+        {
+            entity.HasIndex(c => c.CallSid).IsUnique();
+            entity
+                .HasMany(c => c.Messages)
+                .WithOne(m => m.VoiceCall!)
+                .HasForeignKey(m => m.VoiceCallId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         ApplyTenantFilters(modelBuilder);
     }
 
@@ -71,6 +84,12 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Conversation>().HasQueryFilter(c => c.TenantId == _tenant.TenantId);
         modelBuilder.Entity<Lead>().HasQueryFilter(l => l.TenantId == _tenant.TenantId);
         modelBuilder.Entity<UsageMetric>().HasQueryFilter(u => u.TenantId == _tenant.TenantId);
+        modelBuilder.Entity<VoiceAgent>().HasQueryFilter(a => a.TenantId == _tenant.TenantId);
+        modelBuilder.Entity<VoiceCall>().HasQueryFilter(c => c.TenantId == _tenant.TenantId);
+
+        // voice_messages nu are tenant_id: se filtreaza prin apelul parinte
+        modelBuilder.Entity<VoiceMessage>()
+            .HasQueryFilter(m => m.VoiceCall!.TenantId == _tenant.TenantId);
 
         // messages nu are tenant_id: se filtreaza prin conversatia parinte
         modelBuilder.Entity<Message>()

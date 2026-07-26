@@ -22,6 +22,12 @@ public class NotFoundException : Exception
     public static NotFoundException Conversation() =>
         new("Conversația nu a fost găsită sau nu aparține contului tău.");
 
+    public static NotFoundException VoiceAgent() =>
+        new("Agentul vocal nu a fost găsit sau nu aparține contului tău.");
+
+    public static NotFoundException VoiceCall() =>
+        new("Apelul nu a fost găsit sau nu aparține contului tău.");
+
     public static NotFoundException Account() =>
         new("Contul nu a fost găsit.");
 }

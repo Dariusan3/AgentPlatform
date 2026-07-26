@@ -10,6 +10,9 @@ export const queryKeys = {
   lead: (id: string) => ['leads', 'detail', id] as const,
   conversations: ['conversations'] as const,
   conversation: (id: string) => ['conversations', id] as const,
+  voiceAgents: ['voice-agents'] as const,
+  voiceCalls: (agentId: string) => ['voice-agents', agentId, 'calls'] as const,
+  voiceCall: (callId: string) => ['voice-calls', callId] as const,
   profile: ['settings', 'profile'] as const,
   usage: ['settings', 'usage'] as const,
 }

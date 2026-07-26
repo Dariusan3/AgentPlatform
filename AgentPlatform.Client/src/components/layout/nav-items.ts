@@ -3,6 +3,7 @@ import {
   Building2,
   LayoutDashboard,
   MessageSquare,
+  PhoneCall,
   Settings,
   Users,
 } from 'lucide-react'
@@ -25,6 +26,12 @@ export const navItems: NavItem[] = [
     group: 'main',
   },
   { to: '/dashboard/agents', label: 'Agenți AI', icon: Bot, group: 'main' },
+  {
+    to: '/dashboard/voice-agents',
+    label: 'Agenți vocali',
+    icon: PhoneCall,
+    group: 'main',
+  },
   { to: '/dashboard/leads', label: 'Leaduri', icon: Users, group: 'main' },
   {
     to: '/dashboard/conversations',
