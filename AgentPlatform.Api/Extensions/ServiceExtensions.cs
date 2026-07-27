@@ -1,6 +1,8 @@
 using AgentPlatform.Api.Data;
 using AgentPlatform.Api.Repositories;
 using AgentPlatform.Api.Services;
+using AgentPlatform.Api.Services.Notifications;
+using AgentPlatform.Api.Services.Notifications.WebPush;
 using AgentPlatform.Api.Services.Voice;
 using Microsoft.EntityFrameworkCore;
 
@@ -42,6 +44,8 @@ public static class ServiceExtensions
         services.AddScoped<IDashboardRepository, DashboardRepository>();
         services.AddScoped<IVoiceAgentRepository, VoiceAgentRepository>();
         services.AddScoped<IVoiceCallRepository, VoiceCallRepository>();
+        services.AddScoped<INotificationRepository, NotificationRepository>();
+        services.AddScoped<IPushSubscriptionRepository, PushSubscriptionRepository>();
 
         return services;
     }
@@ -80,6 +84,16 @@ public static class ServiceExtensions
             };
         });
         services.AddScoped<VoiceStreamHandler>();
+
+        // Notificari
+        services.AddScoped<INotificationService, NotificationService>();
+
+        // Serviciile de push ale browserelor sunt uneori lente; fara timeout
+        // scurt, o notificare ar putea tine firul ocupat un minut.
+        services.AddHttpClient<IWebPushService, WebPushService>(http =>
+            http.Timeout = TimeSpan.FromSeconds(15));
+
+        services.AddHostedService<ScheduledNotificationsWorker>();
 
         // Transcrierea trimite fisiere audio, deci are nevoie de timeout mai lung
         services.AddHttpClient<ISpeechService, SpeechService>(http =>

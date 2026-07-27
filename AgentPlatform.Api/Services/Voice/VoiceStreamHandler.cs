@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using AgentPlatform.Api.Models;
 using AgentPlatform.Api.Repositories;
+using AgentPlatform.Api.Services.Notifications;
 using AgentPlatform.Api.Services.Voice.Audio;
 
 namespace AgentPlatform.Api.Services.Voice;
@@ -29,6 +30,7 @@ public class VoiceStreamHandler
     private readonly IVoiceCallRepository _calls;
     private readonly IPropertyRepository _properties;
     private readonly IAgentRepository _tenants;
+    private readonly INotificationService _notifications;
     private readonly ILogger<VoiceStreamHandler> _logger;
 
     public VoiceStreamHandler(
@@ -39,6 +41,7 @@ public class VoiceStreamHandler
         IVoiceCallRepository calls,
         IPropertyRepository properties,
         IAgentRepository tenants,
+        INotificationService notifications,
         ILogger<VoiceStreamHandler> logger)
     {
         _speech = speech;
@@ -48,6 +51,7 @@ public class VoiceStreamHandler
         _calls = calls;
         _properties = properties;
         _tenants = tenants;
+        _notifications = notifications;
         _logger = logger;
     }
 
@@ -94,6 +98,16 @@ public class VoiceStreamHandler
                     if (!greeted)
                     {
                         greeted = true;
+
+                        await _notifications.NotifyAsync(
+                            call.TenantId,
+                            NotificationTypes.VoiceCallReceived,
+                            "Apel preluat",
+                            $"{agent.Name} raspunde unui apel de la {call.CallerPhone}.",
+                            "/dashboard/voice-agents",
+                            "info",
+                            ct);
+
                         await GreetAsync(socket, call, agent, ct);
                     }
                     break;
@@ -272,6 +286,16 @@ public class VoiceStreamHandler
                 call.LeadQualified = true;
                 await _calls.UpdateAsync(call, ct);
 
+                await _notifications.NotifyAsync(
+                    call.TenantId,
+                    NotificationTypes.VoiceLeadQualified,
+                    "Lead calificat la telefon",
+                    $"{call.CallerName ?? call.CallerPhone} a spus ce caută. " +
+                    "Transcrierea completă e în istoricul apelului.",
+                    "/dashboard/voice-agents",
+                    "success",
+                    ct);
+
                 var tenant = await _tenants.GetByIdAsync(call.TenantId, ct);
                 if (!string.IsNullOrWhiteSpace(tenant?.Phone))
                 {
@@ -300,6 +324,16 @@ public class VoiceStreamHandler
                     agent.Name,
                     ct);
                 await _calls.UpdateAsync(call, ct);
+
+                await _notifications.NotifyAsync(
+                    call.TenantId,
+                    NotificationTypes.ViewingScheduled,
+                    "Vizionare programată",
+                    $"{call.CallerName ?? call.CallerPhone} vine pe " +
+                    $"{viewing.Value:dd MMMM, HH:mm}. Stabilit de {agent.Name} la telefon.",
+                    "/dashboard/voice-agents",
+                    "success",
+                    ct);
                 break;
 
             case "END_CALL":

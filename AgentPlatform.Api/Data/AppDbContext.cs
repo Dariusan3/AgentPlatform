@@ -25,6 +25,10 @@ public class AppDbContext : DbContext
     public DbSet<VoiceAgent> VoiceAgents => Set<VoiceAgent>();
     public DbSet<VoiceCall> VoiceCalls => Set<VoiceCall>();
     public DbSet<VoiceMessage> VoiceMessages => Set<VoiceMessage>();
+    public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<NotificationPreference> NotificationPreferences =>
+        Set<NotificationPreference>();
+    public DbSet<PushSubscription> PushSubscriptions => Set<PushSubscription>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -86,6 +90,16 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<UsageMetric>().HasQueryFilter(u => u.TenantId == _tenant.TenantId);
         modelBuilder.Entity<VoiceAgent>().HasQueryFilter(a => a.TenantId == _tenant.TenantId);
         modelBuilder.Entity<VoiceCall>().HasQueryFilter(c => c.TenantId == _tenant.TenantId);
+        modelBuilder.Entity<Notification>()
+            .HasQueryFilter(n => n.TenantId == _tenant.TenantId);
+        modelBuilder.Entity<PushSubscription>()
+            .HasQueryFilter(s => s.TenantId == _tenant.TenantId);
+
+        // Cheie compusa: o singura preferinta per tip per cont
+        modelBuilder.Entity<NotificationPreference>()
+            .HasKey(p => new { p.TenantId, p.Type });
+        modelBuilder.Entity<NotificationPreference>()
+            .HasQueryFilter(p => p.TenantId == _tenant.TenantId);
 
         // voice_messages nu are tenant_id: se filtreaza prin apelul parinte
         modelBuilder.Entity<VoiceMessage>()

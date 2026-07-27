@@ -2,6 +2,7 @@ using AgentPlatform.Api.DTOs;
 using AgentPlatform.Api.Exceptions;
 using AgentPlatform.Api.Models;
 using AgentPlatform.Api.Repositories;
+using AgentPlatform.Api.Services.Notifications;
 
 namespace AgentPlatform.Api.Services;
 
@@ -48,6 +49,7 @@ public class ConversationService : IConversationService
     private readonly IAiAgentRepository _agents;
     private readonly IPropertyRepository _properties;
     private readonly IAiReplyService _ai;
+    private readonly INotificationService _notifications;
     private readonly ILogger<ConversationService> _logger;
 
     public ConversationService(
@@ -56,7 +58,8 @@ public class ConversationService : IConversationService
         IAiAgentRepository agents,
         IPropertyRepository properties,
         IAiReplyService ai,
-        ILogger<ConversationService> logger)
+        ILogger<ConversationService> logger,
+        INotificationService notifications)
     {
         _conversations = conversations;
         _leads = leads;
@@ -64,6 +67,7 @@ public class ConversationService : IConversationService
         _properties = properties;
         _ai = ai;
         _logger = logger;
+        _notifications = notifications;
     }
 
     public async Task<List<ConversationResponseDto>> GetAllAsync(
@@ -156,6 +160,15 @@ public class ConversationService : IConversationService
         conversation.Status = "converted";
         await _conversations.UpdateAsync(conversation, ct);
 
+        await _notifications.NotifyAsync(
+            tenantId,
+            NotificationTypes.LeadQualified,
+            "Lead nou",
+            $"{created.Name ?? created.Phone} a devenit lead dintr-o conversație WhatsApp.",
+            $"/dashboard/leads",
+            "success",
+            ct);
+
         return LeadResponseDto.From(created);
     }
 
@@ -220,21 +233,35 @@ public class ConversationService : IConversationService
         var tenantId = agent.TenantId;
 
         var conversation =
-            await _conversations.GetByContactAsync(tenantId, agent.Id, phone, ct)
-            ?? await _conversations.CreateAsync(
-                new Conversation
-                {
-                    Id = Guid.NewGuid(),
-                    TenantId = tenantId,
-                    AiAgentId = agent.Id,
-                    ContactPhone = phone,
-                    ContactName = contactName?.Trim(),
-                    Channel = "whatsapp",
-                    Status = "active",
-                    LeadScore = 0,
-                    StartedAt = DateTime.UtcNow,
-                },
+            await _conversations.GetByContactAsync(tenantId, agent.Id, phone, ct);
+        var isNewContact = conversation is null;
+
+        conversation ??= await _conversations.CreateAsync(
+            new Conversation
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                AiAgentId = agent.Id,
+                ContactPhone = phone,
+                ContactName = contactName?.Trim(),
+                Channel = "whatsapp",
+                Status = "active",
+                LeadScore = 0,
+                StartedAt = DateTime.UtcNow,
+            },
+            ct);
+
+        if (isNewContact)
+        {
+            await _notifications.NotifyAsync(
+                tenantId,
+                NotificationTypes.ConversationStarted,
+                "Conversație nouă",
+                $"{contactName?.Trim() ?? phone} i-a scris agentului {agent.Name}.",
+                "/dashboard/conversations",
+                "info",
                 ct);
+        }
 
         await _conversations.AddMessageAsync(
             new Message
@@ -280,6 +307,16 @@ public class ConversationService : IConversationService
                 exception,
                 "Generarea raspunsului a eșuat pentru conversatia {Id}",
                 conversation.Id);
+
+            await _notifications.NotifyAsync(
+                tenantId,
+                NotificationTypes.IntegrationFailure,
+                "Un mesaj a rămas fără răspuns",
+                $"Agentul {agent.Name} nu a putut răspunde lui {phone}. " +
+                "Clientul așteaptă — verifică logurile.",
+                "/dashboard/conversations",
+                "error",
+                ct);
 
             return (conversation, null, exception switch
             {

@@ -1,6 +1,7 @@
-import { Bell, LogOut, Menu, Settings, User } from 'lucide-react'
+import { LogOut, Menu, Settings, User } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { titleForPath } from '@/components/layout/nav-items'
+import { NotificationsMenu } from '@/components/NotificationsMenu'
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -52,15 +53,7 @@ export function TopBar({ onOpenMenu }: { onOpenMenu: () => void }) {
             </Link>
           )}
 
-          {/* Fara badge rosu: nu exista inca sursa reala de notificari */}
-          <button
-            type="button"
-            aria-label="Notificări"
-            title="Notificările vor apărea aici"
-            className="text-muted hover:text-fg hover:bg-hover rounded-btn grid size-9 place-items-center transition-colors"
-          >
-            <Bell aria-hidden className="size-4" />
-          </button>
+          <NotificationsMenu />
 
           <DropdownMenu>
             <DropdownMenuTrigger

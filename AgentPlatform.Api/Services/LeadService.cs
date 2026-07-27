@@ -1,6 +1,7 @@
 using AgentPlatform.Api.DTOs;
 using AgentPlatform.Api.Exceptions;
 using AgentPlatform.Api.Repositories;
+using AgentPlatform.Api.Services.Notifications;
 
 namespace AgentPlatform.Api.Services;
 
@@ -30,10 +31,12 @@ public class LeadService : ILeadService
         ["new", "contacted", "qualified", "lost"];
 
     private readonly ILeadRepository _leads;
+    private readonly INotificationService _notifications;
 
-    public LeadService(ILeadRepository leads)
+    public LeadService(ILeadRepository leads, INotificationService notifications)
     {
         _leads = leads;
+        _notifications = notifications;
     }
 
     public async Task<List<LeadResponseDto>> GetAllAsync(
@@ -80,8 +83,25 @@ public class LeadService : ILeadService
         var lead = await _leads.GetByIdAsync(id, tenantId, ct)
             ?? throw NotFoundException.Lead();
 
+        // Retinut inainte de scriere: dupa UpdateAsync nu mai putem sti daca
+        // statusul chiar s-a schimbat, deci am notifica la fiecare salvare.
+        var wasQualified = lead.Status == "qualified";
+
         lead.Status = status;
         var updated = await _leads.UpdateAsync(lead, ct);
+
+        if (status == "qualified" && !wasQualified)
+        {
+            await _notifications.NotifyAsync(
+                tenantId,
+                NotificationTypes.LeadQualified,
+                "Lead calificat",
+                $"{updated.Name ?? updated.Phone} a fost marcat drept calificat.",
+                "/dashboard/leads",
+                "success",
+                ct);
+        }
+
         return LeadResponseDto.From(updated);
     }
 

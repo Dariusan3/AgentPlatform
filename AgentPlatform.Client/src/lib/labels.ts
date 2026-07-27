@@ -100,3 +100,20 @@ export const formatMessageTime = (iso: string) => {
   const isToday = date.toDateString() === new Date().toDateString()
   return isToday ? formatTime(iso) : formatShortDate(iso)
 }
+
+/**
+ * "acum", "acum 5 min", "acum 3 h", "acum 2 zile" — pentru notificari, unde
+ * conteaza cat de proaspata e stirea, nu data exacta.
+ */
+export const formatRelativeTime = (iso: string) => {
+  const seconds = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000)
+
+  if (seconds < 60) return 'acum'
+  if (seconds < 3600) return `acum ${Math.floor(seconds / 60)} min`
+  if (seconds < 86400) return `acum ${Math.floor(seconds / 3600)} h`
+
+  const days = Math.floor(seconds / 86400)
+  if (days < 7) return days === 1 ? 'ieri' : `acum ${days} zile`
+
+  return formatShortDate(iso)
+}

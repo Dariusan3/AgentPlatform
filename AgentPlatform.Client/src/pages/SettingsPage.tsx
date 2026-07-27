@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { ArrowDown, ArrowUp, Copy, RefreshCw, Upload } from 'lucide-react'
 import { toast } from 'sonner'
@@ -13,6 +13,14 @@ import { Progress } from '@/components/ui/progress'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { formatNumber } from '@/lib/labels'
+import {
+  useNotificationPreferences,
+  usePushConfig,
+  useSendTestPush,
+  useUpdateNotificationPreference,
+} from '@/lib/queries/useNotifications'
+import { currentStatus, subscribe, unsubscribe } from '@/lib/push'
+import type { PushStatus } from '@/lib/push'
 import {
   useProfile,
   useUpdatePassword,
@@ -351,84 +359,173 @@ function UsageRow({
   )
 }
 
-const notificationRows = [
-  {
-    id: 'lead-nou',
-    title: 'Lead nou generat',
-    description: 'Când un agent califică un contact.',
-    channels: ['Email', 'Push'],
-  },
-  {
-    id: 'conversatie-noua',
-    title: 'Conversație nouă',
-    description: 'La primul mesaj de la un număr necunoscut.',
-    channels: ['Push'],
-  },
-  {
-    id: 'raport',
-    title: 'Raport săptămânal',
-    description: 'Sinteza de luni dimineață.',
-    channels: ['Email'],
-  },
-  {
-    id: 'utilizare',
-    title: 'Alertă la 80% din limită',
-    description: 'Ca să nu te prindă nepregătit la finalul lunii.',
-    channels: ['Email'],
-  },
-]
+const groupLabels: Record<string, string> = {
+  activitate: 'Activitate',
+  apeluri: 'Apeluri vocale',
+  operational: 'Operațional',
+}
 
 function NotificationsTab() {
-  const [enabled, setEnabled] = useState<Record<string, boolean>>({
-    'lead-nou': true,
-    'conversatie-noua': true,
-    raport: true,
-    utilizare: false,
-  })
+  const { data, isPending, isError, error, refetch } = useNotificationPreferences()
+  const { data: pushConfig } = usePushConfig()
+  const updatePreference = useUpdateNotificationPreference()
+  const sendTest = useSendTestPush()
+
+  const [pushStatus, setPushStatus] = useState<PushStatus>('unsupported')
+  const [pushBusy, setPushBusy] = useState(false)
+
+  useEffect(() => {
+    void currentStatus().then(setPushStatus)
+  }, [])
+
+  const togglePush = async () => {
+    if (!pushConfig?.publicKey) return
+    setPushBusy(true)
+
+    try {
+      if (pushStatus === 'subscribed') {
+        await unsubscribe()
+        toast.success('Notificările de sistem au fost oprite.')
+      } else {
+        await subscribe(pushConfig.publicKey)
+        toast.success('Browserul primește acum notificări.')
+      }
+      setPushStatus(await currentStatus())
+    } catch (pushError) {
+      toast.error(
+        pushError instanceof Error
+          ? pushError.message
+          : 'Abonarea la notificări a eșuat.',
+      )
+    } finally {
+      setPushBusy(false)
+    }
+  }
+
+  if (isPending) return <LoadingCard label="Se încarcă preferințele…" />
+  if (isError) return <ErrorCard error={error} onRetry={() => void refetch()} />
+
+  const groups = Object.keys(groupLabels).filter((group) =>
+    data.some((preference) => preference.group === group),
+  )
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Ce vrei să afli</CardTitle>
-        <Badge tone="outline">local</Badge>
-      </CardHeader>
-      <div>
-        {notificationRows.map((row) => (
-          <div
-            key={row.id}
-            className="border-line flex items-start justify-between gap-6 border-b px-5 py-4 last:border-b-0"
-          >
-            <div className="min-w-0">
-              <p className="text-[13.5px] font-medium">{row.title}</p>
-              <p className="text-muted mt-1 text-[12.5px] leading-relaxed">
-                {row.description}
-              </p>
-              <div className="mt-2 flex gap-1.5">
-                {row.channels.map((channel) => (
-                  <Badge key={channel} tone="outline">
-                    {channel}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-            <Switch
-              checked={enabled[row.id] ?? false}
-              onCheckedChange={(value) =>
-                setEnabled((current) => ({ ...current, [row.id]: value }))
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Notificări în browser</CardTitle>
+          {pushStatus === 'subscribed' && <Badge tone="success">pornite</Badge>}
+        </CardHeader>
+        <CardBody className="space-y-4">
+          <p className="text-muted text-[13px] leading-relaxed">
+            {pushStatus === 'unsupported'
+              ? 'Browserul acesta nu acceptă notificări de sistem. Cele din aplicație funcționează în continuare.'
+              : pushStatus === 'denied'
+                ? 'Ai refuzat notificările pentru acest site. Reactivează-le din setările site-ului, de lângă bara de adresă.'
+                : pushStatus === 'subscribed'
+                  ? 'Primești notificări chiar și cu tabul închis, atât timp cât browserul rulează.'
+                  : 'Pornește-le ca să afli de leaduri și apeluri fără să ții aplicația deschisă.'}
+          </p>
+
+          {!pushConfig?.enabled && (
+            <p className="text-muted text-[12px] leading-relaxed">
+              Serverul nu are chei VAPID configurate, deci abonarea nu ar avea unde
+              să trimită. Adaugă secțiunea <code>WebPush</code> în
+              appsettings.Development.json.
+            </p>
+          )}
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant={pushStatus === 'subscribed' ? 'outline' : 'primary'}
+              disabled={
+                pushBusy ||
+                !pushConfig?.enabled ||
+                pushStatus === 'unsupported' ||
+                pushStatus === 'denied'
               }
-              aria-label={row.title}
-              className="mt-1 shrink-0"
-            />
+              onClick={() => void togglePush()}
+            >
+              {pushBusy && <Spinner className="size-4" />}
+              {pushStatus === 'subscribed'
+                ? 'Oprește notificările'
+                : 'Pornește notificările'}
+            </Button>
+
+            {pushStatus === 'subscribed' && (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={sendTest.isPending}
+                onClick={() => sendTest.mutate()}
+              >
+                {sendTest.isPending && <Spinner className="size-4" />}
+                Trimite o probă
+              </Button>
+            )}
           </div>
-        ))}
-      </div>
-      <CardBody className="border-line border-t">
-        <p className="text-muted text-[12px] leading-relaxed">
-          Preferințele nu se salvează încă pe server — backendul nu are endpoint
-          de notificări. Se resetează la reîncărcarea paginii.
-        </p>
-      </CardBody>
-    </Card>
+        </CardBody>
+      </Card>
+
+      {groups.map((group) => (
+        <Card key={group}>
+          <CardHeader>
+            <CardTitle>{groupLabels[group]}</CardTitle>
+            <div className="text-muted flex gap-6 font-mono text-[10px] tracking-widest uppercase">
+              <span>în aplicație</span>
+              <span>push</span>
+            </div>
+          </CardHeader>
+          <div>
+            {data
+              .filter((preference) => preference.group === group)
+              .map((preference) => (
+                <div
+                  key={preference.type}
+                  className="border-line flex items-start justify-between gap-6 border-b px-5 py-4 last:border-b-0"
+                >
+                  <div className="min-w-0">
+                    <p className="text-[13.5px] font-medium">{preference.title}</p>
+                    <p className="text-muted mt-1 text-[12.5px] leading-relaxed">
+                      {preference.description}
+                    </p>
+                  </div>
+
+                  <div className="flex shrink-0 gap-6 pt-1">
+                    <Switch
+                      checked={preference.inApp}
+                      disabled={updatePreference.isPending}
+                      onCheckedChange={(value) =>
+                        updatePreference.mutate({
+                          type: preference.type,
+                          inApp: value,
+                          push: preference.push,
+                        })
+                      }
+                      aria-label={`${preference.title} în aplicație`}
+                    />
+                    <Switch
+                      checked={preference.push}
+                      disabled={
+                        updatePreference.isPending || pushStatus !== 'subscribed'
+                      }
+                      onCheckedChange={(value) =>
+                        updatePreference.mutate({
+                          type: preference.type,
+                          inApp: preference.inApp,
+                          push: value,
+                        })
+                      }
+                      aria-label={`${preference.title} prin push`}
+                    />
+                  </div>
+                </div>
+              ))}
+          </div>
+        </Card>
+      ))}
+    </div>
   )
 }
 

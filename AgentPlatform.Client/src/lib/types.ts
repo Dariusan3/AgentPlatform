@@ -207,3 +207,36 @@ export type VoiceTestCall = {
   callSid: string
   streamUrl: string
 }
+
+export type NotificationSeverity = 'info' | 'success' | 'warning' | 'error'
+
+export type AppNotification = {
+  id: string
+  type: string
+  title: string
+  body: string
+  severity: NotificationSeverity
+  link: string | null
+  read: boolean
+  createdAt: string
+}
+
+export type NotificationList = {
+  unreadCount: number
+  items: AppNotification[]
+}
+
+export type NotificationPreference = {
+  type: string
+  /** activitate | apeluri | operational */
+  group: string
+  title: string
+  description: string
+  inApp: boolean
+  push: boolean
+}
+
+export type PushConfig = {
+  enabled: boolean
+  publicKey: string | null
+}

@@ -3,6 +3,7 @@ using System.Xml.Linq;
 using AgentPlatform.Api.Data;
 using AgentPlatform.Api.Repositories;
 using AgentPlatform.Api.Services;
+using AgentPlatform.Api.Services.Notifications;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -24,6 +25,7 @@ public class WebhooksController : ControllerBase
     private readonly IAiAgentRepository _agents;
     private readonly ITwilioRequestValidator _validator;
     private readonly ITenantContextSetter _tenant;
+    private readonly INotificationService _notifications;
     private readonly IConfiguration _config;
     private readonly ILogger<WebhooksController> _logger;
 
@@ -32,6 +34,7 @@ public class WebhooksController : ControllerBase
         IAiAgentRepository agents,
         ITwilioRequestValidator validator,
         ITenantContextSetter tenant,
+        INotificationService notifications,
         IConfiguration config,
         ILogger<WebhooksController> logger)
     {
@@ -39,6 +42,7 @@ public class WebhooksController : ControllerBase
         _agents = agents;
         _validator = validator;
         _tenant = tenant;
+        _notifications = notifications;
         _config = config;
         _logger = logger;
     }
@@ -121,6 +125,17 @@ public class WebhooksController : ControllerBase
         {
             _logger.LogInformation(
                 "Agentul {Name} deserveste {To}, dar e oprit.", byNumber.Name, to);
+
+            await _notifications.NotifyAsync(
+                byNumber.TenantId,
+                NotificationTypes.InactiveAgentMessage,
+                "Mesaj către un agent oprit",
+                $"Cineva i-a scris lui {byNumber.Name}, dar agentul e oprit " +
+                "și mesajul a rămas fără răspuns.",
+                "/dashboard/agents",
+                "warning",
+                ct);
+
             return null;
         }
 

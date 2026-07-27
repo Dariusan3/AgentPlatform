@@ -12,6 +12,12 @@ public interface IAgentRepository
         Guid tenantId,
         string month,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Toate conturile. Fara filtru de tenant: sarcinile periodice ruleaza fara
+    /// utilizator autentificat si trebuie sa treaca prin fiecare cont in parte.
+    /// </summary>
+    Task<List<Guid>> GetAllTenantIdsAsync(CancellationToken ct = default);
 }
 
 /// <summary>Tenantul insusi: profil si utilizare. Folosit de SettingsController.</summary>
@@ -41,4 +47,10 @@ public class AgentRepository : IAgentRepository
         _db.UsageMetrics.FirstOrDefaultAsync(
             u => u.TenantId == tenantId && u.Month == month,
             ct);
+
+    public Task<List<Guid>> GetAllTenantIdsAsync(CancellationToken ct = default) =>
+        _db.Agents
+            .IgnoreQueryFilters()
+            .Select(a => a.Id)
+            .ToListAsync(ct);
 }

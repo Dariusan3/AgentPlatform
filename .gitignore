@@ -19,6 +19,7 @@ appsettings.Development.json
 
 # Note locale cu parole de test - nu ajung in git
 CONTURI-DEV.md
+GHID-TESTARE-WHATSAPP.md
 
 # ===== Supabase =====
 supabase/.branches/

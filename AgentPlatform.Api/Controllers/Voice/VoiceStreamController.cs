@@ -1,5 +1,6 @@
 using AgentPlatform.Api.Data;
 using AgentPlatform.Api.Repositories;
+using AgentPlatform.Api.Services.Notifications;
 using AgentPlatform.Api.Services.Voice;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -23,6 +24,7 @@ public class VoiceStreamController : ControllerBase
     private readonly IVoiceAgentRepository _agents;
     private readonly VoiceStreamHandler _handler;
     private readonly ITenantContextSetter _tenant;
+    private readonly INotificationService _notifications;
     private readonly ILogger<VoiceStreamController> _logger;
 
     public VoiceStreamController(
@@ -30,12 +32,14 @@ public class VoiceStreamController : ControllerBase
         IVoiceAgentRepository agents,
         VoiceStreamHandler handler,
         ITenantContextSetter tenant,
+        INotificationService notifications,
         ILogger<VoiceStreamController> logger)
     {
         _calls = calls;
         _agents = agents;
         _handler = handler;
         _tenant = tenant;
+        _notifications = notifications;
         _logger = logger;
     }
 
@@ -91,6 +95,18 @@ public class VoiceStreamController : ControllerBase
                 "Apelul {CallSid} a atins limita de {Seconds}s",
                 callSid,
                 agent.MaxCallDurationSeconds);
+
+            // CancellationToken-ul cererii e deja anulat aici: fara unul nou,
+            // notificarea ar fi abandonata exact cand e nevoie de ea.
+            await _notifications.NotifyAsync(
+                call.TenantId,
+                NotificationTypes.CallLimitReached,
+                "Apel închis la limita de durată",
+                $"Apelul de la {call.CallerPhone} a depășit " +
+                $"{agent.MaxCallDurationSeconds} secunde și a fost închis automat.",
+                "/dashboard/voice-agents",
+                "warning",
+                CancellationToken.None);
         }
         catch (Exception exception)
         {

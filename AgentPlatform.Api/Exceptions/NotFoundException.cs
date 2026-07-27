@@ -28,6 +28,9 @@ public class NotFoundException : Exception
     public static NotFoundException VoiceCall() =>
         new("Apelul nu a fost găsit sau nu aparține contului tău.");
 
+    public static NotFoundException Notification() =>
+        new("Notificarea nu a fost găsită sau nu aparține contului tău.");
+
     public static NotFoundException Account() =>
         new("Contul nu a fost găsit.");
 }
