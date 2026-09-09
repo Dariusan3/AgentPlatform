@@ -23,6 +23,7 @@ public interface IConversationService
         Guid id,
         Guid tenantId,
         CancellationToken ct = default);
+    Task DeleteAsync(Guid id, Guid tenantId, CancellationToken ct = default);
 
     /// <summary>Simuleaza un mesaj primit si raspunsul agentului.</summary>
     Task<SimulateResultDto> SimulateInboundAsync(
@@ -170,6 +171,18 @@ public class ConversationService : IConversationService
             ct);
 
         return LeadResponseDto.From(created);
+    }
+
+    /// <remarks>
+    /// Sterge definitiv conversatia si mesajele ei. Leadul creat din ea ramane,
+    /// dar pierde legatura cu firul de discutie (FK e ON DELETE SET NULL).
+    /// </remarks>
+    public async Task DeleteAsync(Guid id, Guid tenantId, CancellationToken ct = default)
+    {
+        var conversation = await _conversations.GetByIdAsync(id, tenantId, ct)
+            ?? throw NotFoundException.Conversation();
+
+        await _conversations.DeleteAsync(conversation, ct);
     }
 
     public async Task<SimulateResultDto> SimulateInboundAsync(

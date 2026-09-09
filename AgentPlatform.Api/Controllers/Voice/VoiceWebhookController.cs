@@ -46,6 +46,18 @@ public class VoiceWebhookController : ControllerBase
     [Produces("application/xml")]
     public async Task<IActionResult> Incoming(CancellationToken ct)
     {
+        // Request.Form arunca daca cererea nu are content-type de formular, iar
+        // asta ar iesi ca 500. Twilio trimite mereu formular; orice altceva e o
+        // cerere gresita, deci raspundem 415, nu „eroare interna”.
+        if (!Request.HasFormContentType)
+        {
+            _logger.LogWarning(
+                "Cerere fara content-type de formular pe {Path}", Request.Path);
+            return StatusCode(
+                StatusCodes.Status415UnsupportedMediaType,
+                "Webhookul acceptă doar application/x-www-form-urlencoded.");
+        }
+
         var form = Request.Form.ToDictionary(f => f.Key, f => f.Value.ToString());
 
         if (!Validate("incoming", form, out var error)) return error!;
@@ -111,6 +123,18 @@ public class VoiceWebhookController : ControllerBase
     [Consumes("application/x-www-form-urlencoded")]
     public async Task<IActionResult> Status(CancellationToken ct)
     {
+        // Request.Form arunca daca cererea nu are content-type de formular, iar
+        // asta ar iesi ca 500. Twilio trimite mereu formular; orice altceva e o
+        // cerere gresita, deci raspundem 415, nu „eroare interna”.
+        if (!Request.HasFormContentType)
+        {
+            _logger.LogWarning(
+                "Cerere fara content-type de formular pe {Path}", Request.Path);
+            return StatusCode(
+                StatusCodes.Status415UnsupportedMediaType,
+                "Webhookul acceptă doar application/x-www-form-urlencoded.");
+        }
+
         var form = Request.Form.ToDictionary(f => f.Key, f => f.Value.ToString());
 
         if (!Validate("status", form, out var error)) return error!;

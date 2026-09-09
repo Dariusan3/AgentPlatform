@@ -60,6 +60,18 @@ public class ConversationsController : ControllerBase
         CancellationToken ct)
         => Ok(await _conversations.SimulateInboundAsync(dto, TenantId, ct));
 
+    /// <summary>
+    /// Sterge conversatia si mesajele ei, definitiv. Leadul creat din ea ramane.
+    /// </summary>
+    [HttpDelete("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    {
+        await _conversations.DeleteAsync(id, TenantId, ct);
+        return NoContent();
+    }
+
     /// <summary>Creeaza leadul din conversatie. Idempotent.</summary>
     [HttpPatch("{id:guid}/convert")]
     [ProducesResponseType<LeadResponseDto>(StatusCodes.Status200OK)]

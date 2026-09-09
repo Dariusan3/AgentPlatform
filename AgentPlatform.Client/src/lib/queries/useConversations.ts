@@ -46,6 +46,26 @@ export function useCloseConversation() {
   })
 }
 
+/** Stergere definitiva: mesajele pleaca odata cu ea, leadul ramane. */
+export function useDeleteConversation() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (conversation: Conversation) => {
+      await api.delete(`/api/conversations/${conversation.id}`)
+      return conversation
+    },
+    onSuccess: (conversation) => {
+      void queryClient.invalidateQueries({ queryKey: ['conversations'] })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
+      toast.success('Conversație ștearsă.', {
+        description: conversation.contactName ?? conversation.contactPhone,
+      })
+    },
+    onError: (error) => toast.error(apiErrorMessage(error)),
+  })
+}
+
 export function useConvertConversation() {
   const queryClient = useQueryClient()
 

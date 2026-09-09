@@ -1,4 +1,5 @@
 using System.Text;
+using AgentPlatform.Api.Http;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 
@@ -57,10 +58,61 @@ public static class AuthExtensions
                         new SymmetricSecurityKey(
                             Encoding.UTF8.GetBytes(legacySecret));
                 }
+
+                options.Events = BearerEvents();
             });
 
         services.AddAuthorization();
 
         return services;
     }
+
+    /// <remarks>
+    /// Fara asta, un 401 pleaca cu corpul gol si frontendul nu are ce afisa.
+    /// Distingem si motivul: token expirat, token invalid sau lipsa completa —
+    /// altfel utilizatorul nu stie daca trebuie sa se reconecteze sau sa astepte.
+    /// </remarks>
+    private static JwtBearerEvents BearerEvents() => new()
+    {
+        OnAuthenticationFailed = context =>
+        {
+            context.HttpContext.Items[FailureReasonKey] = context.Exception switch
+            {
+                SecurityTokenExpiredException =>
+                    "Sesiunea a expirat. Conectează-te din nou.",
+                SecurityTokenInvalidIssuerException
+                    or SecurityTokenInvalidAudienceException =>
+                    "Sesiunea nu e valabilă pentru această aplicație. " +
+                    "Conectează-te din nou.",
+                SecurityTokenSignatureKeyNotFoundException =>
+                    "Nu am putut verifica sesiunea: cheile Supabase nu au putut fi " +
+                    "citite. Verifică legătura la internet și încearcă din nou.",
+                _ => "Sesiunea nu mai e validă. Conectează-te din nou.",
+            };
+
+            return Task.CompletedTask;
+        },
+
+        OnChallenge = async context =>
+        {
+            // Preluam noi raspunsul: implicit ar fi 401 gol, cu un header WWW-Authenticate
+            context.HandleResponse();
+
+            var message = context.HttpContext.Items[FailureReasonKey] as string
+                ?? "Trebuie să fii conectat pentru asta.";
+
+            await ApiError.WriteAsync(
+                context.HttpContext,
+                StatusCodes.Status401Unauthorized,
+                message);
+        },
+
+        OnForbidden = context => ApiError.WriteAsync(
+            context.HttpContext,
+            StatusCodes.Status403Forbidden,
+            "Contul tău nu are acces la resursa asta."),
+    };
+
+    /// <summary>Motivul esecului, pasat din OnAuthenticationFailed in OnChallenge.</summary>
+    private const string FailureReasonKey = "AuthFailureReason";
 }

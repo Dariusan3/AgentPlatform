@@ -17,6 +17,10 @@ public interface IConversationRepository
     Task<Conversation> UpdateAsync(Conversation conversation, CancellationToken ct = default);
     Task<Conversation> CreateAsync(Conversation conversation, CancellationToken ct = default);
 
+    /// <summary>Sterge conversatia. Mesajele pleaca prin ON DELETE CASCADE,
+    /// iar leadul ramane, cu conversation_id pus pe null.</summary>
+    Task DeleteAsync(Conversation conversation, CancellationToken ct = default);
+
     /// <summary>Conversatia deschisa cu acest contact pe acest agent, daca exista.</summary>
     Task<Conversation?> GetByContactAsync(
         Guid tenantId,
@@ -94,6 +98,12 @@ public class ConversationRepository : IConversationRepository
         _db.Conversations.Add(conversation);
         await _db.SaveChangesAsync(ct);
         return conversation;
+    }
+
+    public async Task DeleteAsync(Conversation conversation, CancellationToken ct = default)
+    {
+        _db.Conversations.Remove(conversation);
+        await _db.SaveChangesAsync(ct);
     }
 
     public Task<Conversation?> GetByContactAsync(

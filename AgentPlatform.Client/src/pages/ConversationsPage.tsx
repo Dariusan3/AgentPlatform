@@ -5,6 +5,7 @@ import {
   MessageSquare,
   Search,
   Send,
+  Trash2,
   UserPlus,
   XCircle,
 } from 'lucide-react'
@@ -14,6 +15,15 @@ import { Spinner } from '@/components/Spinner'
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/field'
 import { Progress } from '@/components/ui/progress'
 import {
@@ -26,6 +36,7 @@ import {
   useConversation,
   useConversations,
   useConvertConversation,
+  useDeleteConversation,
 } from '@/lib/queries/useConversations'
 import { conversationTone, scoreClass } from '@/lib/tones'
 import type { Conversation } from '@/lib/types'
@@ -187,7 +198,14 @@ export function ConversationsPage() {
         )}
       >
         {selectedId ? (
-          <Thread id={selectedId} onBack={() => setShowThread(false)} />
+          <Thread
+            id={selectedId}
+            onBack={() => setShowThread(false)}
+            onDeleted={() => {
+              setActiveId(null)
+              setShowThread(false)
+            }}
+          />
         ) : (
           <div className="text-muted grid flex-1 place-items-center p-6 text-[13.5px]">
             Alege o conversație din stânga.
@@ -208,7 +226,15 @@ export function ConversationsPage() {
 }
 
 /** Firul complet vine din endpointul de detaliu: lista are doar ultimul mesaj. */
-function Thread({ id, onBack }: { id: string; onBack: () => void }) {
+function Thread({
+  id,
+  onBack,
+  onDeleted,
+}: {
+  id: string
+  onBack: () => void
+  onDeleted: () => void
+}) {
   const { data, isPending, isError, error, refetch } = useConversation(id)
 
   if (isPending) {
@@ -227,18 +253,24 @@ function Thread({ id, onBack }: { id: string; onBack: () => void }) {
     )
   }
 
-  return <ThreadContent conversation={data} onBack={onBack} />
+  return (
+    <ThreadContent conversation={data} onBack={onBack} onDeleted={onDeleted} />
+  )
 }
 
 function ThreadContent({
   conversation,
   onBack,
+  onDeleted,
 }: {
   conversation: Conversation
   onBack: () => void
+  onDeleted: () => void
 }) {
   const closeConversation = useCloseConversation()
   const convertConversation = useConvertConversation()
+  const deleteConversation = useDeleteConversation()
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
   const alreadyLead = conversation.lead !== null
   const isClosed = conversation.status === 'closed'
@@ -347,6 +379,16 @@ function ThreadContent({
               )}
               {alreadyLead ? 'Deja lead' : 'Marchează ca lead'}
             </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-danger hover:text-danger"
+              disabled={deleteConversation.isPending}
+              onClick={() => setConfirmOpen(true)}
+            >
+              <Trash2 aria-hidden className="size-3.5" />
+              Șterge
+            </Button>
           </div>
         </div>
 
@@ -356,6 +398,56 @@ function ThreadContent({
           oprești din pagina Agenți.
         </p>
       </div>
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Ștergi conversația?</DialogTitle>
+            <DialogDescription>
+              Se șterge definitiv, cu tot cu mesaje. Nu se poate anula.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogBody>
+            <p className="text-muted text-[13px] leading-relaxed">
+              {conversation.contactName ?? conversation.contactPhone} —{' '}
+              {conversation.messages.length}{' '}
+              {conversation.messages.length === 1 ? 'mesaj' : 'mesaje'}.
+              {alreadyLead
+                ? ' Leadul creat din ea rămâne în pagina Leaduri.'
+                : ''}
+            </p>
+          </DialogBody>
+          <DialogFooter>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setConfirmOpen(false)}
+            >
+              Renunță
+            </Button>
+            <Button
+              size="sm"
+              className="bg-danger text-fg hover:bg-danger/90"
+              disabled={deleteConversation.isPending}
+              onClick={() =>
+                deleteConversation.mutate(conversation, {
+                  onSuccess: () => {
+                    setConfirmOpen(false)
+                    onDeleted()
+                  },
+                })
+              }
+            >
+              {deleteConversation.isPending ? (
+                <Spinner className="size-3.5" />
+              ) : (
+                <Trash2 aria-hidden className="size-3.5" />
+              )}
+              Șterge definitiv
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

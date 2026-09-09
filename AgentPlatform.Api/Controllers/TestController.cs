@@ -12,13 +12,16 @@ namespace AgentPlatform.Api.Controllers;
 public class TestController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly ILogger<TestController> _logger;
 
-    public TestController(AppDbContext db)
+    public TestController(AppDbContext db, ILogger<TestController> logger)
     {
         _db = db;
+        _logger = logger;
     }
 
     /// <summary>Health check. Ramane public, ca sa poata fi apelat de monitorizare.</summary>
+    [AllowAnonymous]
     [HttpGet("ping")]
     public async Task<IActionResult> Ping()
     {
@@ -35,12 +38,16 @@ public class TestController : ControllerBase
                 agentsCount
             });
         }
-        catch (Exception ex)
+        catch (Exception exception)
         {
-            return StatusCode(500, new
+            // Ruta e publica, deci mesajul excepției nu poate iesi: ar arata
+            // hostul, userul si baza din connection string.
+            _logger.LogError(exception, "Health check: conexiunea la baza a eșuat");
+
+            return StatusCode(503, new
             {
                 status = "error",
-                message = ex.Message,
+                message = "Nu am putut contacta baza de date. Detaliile sunt în loguri.",
                 agentsCount = (int?)null
             });
         }
